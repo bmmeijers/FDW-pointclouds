@@ -16,8 +16,6 @@ class SystemFdw(ForeignDataWrapper):
     valid options:
         filepath : full path to this file system
     """
-    #def hello(file):
-     #       log_to_postgres('hello')
     
     def __init__(self, fdw_options, fdw_columns):
         super(SystemFdw, self).__init__(fdw_options, fdw_columns)
@@ -33,7 +31,7 @@ class SystemFdw(ForeignDataWrapper):
         #log_to_postgres('execute  {} {} {}'.format(quals, columns, sortkeys), INFO)
         
         if quals:
-            log_to_postgres('Get the box range')
+            log_to_postgres('Get the selection box range')
             for qual in quals:
                 #log_to_postgres(qual)
                 if qual.field_name == 'x' and (qual.operator == '>' or qual.operator == '>='):
@@ -60,6 +58,8 @@ class SystemFdw(ForeignDataWrapper):
                 max_x = float(row['max_x'])
                 min_y = float(row['min_y'])
                 max_y = float(row['max_y'])
+                
+                # there are spatial conditions given
                 if quals:
                     # condition of whether overlapping
                     x_bool = (xmin > min_x and xmin < max_x) or (xmax > min_x and xmax < max_x) or (xmin < min_x and xmax > max_x)
@@ -71,6 +71,8 @@ class SystemFdw(ForeignDataWrapper):
                                                        max_x,
                                                        min_y,
                                                        max_y,]
+                
+                # there is no serach condition on position
                 else:
                    files_info[row['filename']] = [row['format'],
                                                        min_x,
@@ -133,20 +135,12 @@ class SystemFdw(ForeignDataWrapper):
             red, green, blue
             """
             cmd = '/home/mutian/fdw/LAStools.o/bin/las2txt -i {} -parse {} -stdout'.format(file, attribute)
-            #cmd = '/home/mutian/fdw/LAStools.o/bin/las2txt -i {} -stdout'.format(file)
-            log_to_postgres(cmd)
+            
             for line in execute_lastools(cmd):
                 yield line
                 pass
                
-        def reader_laz(laz_file):
-            log_to_postgres('hello')
-            reader_lastools(laz_file)
-        
-        def reader_las(las_file):
-            reader_lastools(las_file)
-        
-        
+
         start = time.time()
         for filename in files_info.keys():
             #log_to_postgres(filename)
@@ -154,40 +148,35 @@ class SystemFdw(ForeignDataWrapper):
             file = '{}/{}'.format(filepath, filename)                                                                                                                          
             log_to_postgres(file)
             if files_info[filename][0] == 'las':
-                #log_to_postgres('to call LAS reader function')
-                #log_to_postgres('to call LAZ reader function')
-                #reader_lastools(file)
-                #reader_laz(file)
+                #log_to_postgres('to read LAS reader file')
+                
                 attribute = 'xyzitcupRGB'
                 if quals:
                     cmd = '/home/mutian/fdw/LAStools.o/bin/las2txt -i {} -parse {} -inside {} {} {} {} -stdout'.format(file, attribute,
                                                                                                                        xmin, ymin, xmax, ymax)
                 else:
                     cmd = '/home/mutian/fdw/LAStools.o/bin/las2txt -i {} -parse {} -stdout'.format(file, attribute)
-                #cmd = '/home/mutian/fdw/LAStools.o/bin/las2txt -i {} -stdout'.format(file) 
-                #log_to_postgres(cmd)
+                
                 for line in execute_lastools(cmd):
                     yield line
                     pass   
                 
             if files_info[filename][0] == 'laz': 
-                #log_to_postgres('to call LAZ reader function')
-                #reader_lastools(file)
-                #reader_laz(file)
+                #log_to_postgres('to read LAZ file')
+                
                 attribute = 'xyzitcupRGB'
                 if quals:
                     cmd = '/home/mutian/fdw/LAStools.o/bin/las2txt -i {} -parse {} -inside {} {} {} {} -stdout'.format(file, attribute,
                                                                                                                        xmin, ymin, xmax, ymax)
                 else:
                     cmd = '/home/mutian/fdw/LAStools.o/bin/las2txt -i {} -parse {} -stdout'.format(file, attribute)
-                #cmd = '/home/mutian/fdw/LAStools.o/bin/las2txt -i {} -stdout'.format(file) 
-                #log_to_postgres(cmd)
+                
                 for line in execute_lastools(cmd):
                     yield line
                     pass   
             
             if files_info[filename][0] == 'txt':
-                #log_to_postgres('to call TXT reader function')
+                #log_to_postgres('to read TXT file')
                 with open (file) as stream:
                     reader = stream.readlines()
                     for line in reader:
@@ -199,8 +188,7 @@ class SystemFdw(ForeignDataWrapper):
                         record = {
                             'x': x,
                             'y': y,
-                            'z': z,
-                            'point2d': point
+                            'z': z
                             }
                         #yield line[:len(self.columns)]
                         yield record
